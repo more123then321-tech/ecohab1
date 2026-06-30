@@ -1,0 +1,1064 @@
+<!DOCTYPE html>
+<html lang="ru">
+<head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no" />
+    <title>Городской Эко-Хаб — приложение</title>
+
+    <!-- Подключаем Яндекс.Карты (замените ключ на свой) -->
+    <script src="https://api-maps.yandex.ru/2.1/?apikey=ваш-ключ&lang=ru_RU" type="text/javascript"></script>
+
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+            font-family: 'Segoe UI', Roboto, system-ui, sans-serif;
+        }
+
+        body {
+            background: #dce4dc;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            min-height: 100vh;
+            padding: 20px;
+        }
+
+        .phone {
+            width: 380px;
+            max-width: 100%;
+            background: #ffffff;
+            border-radius: 40px;
+            padding: 18px 16px 22px;
+            box-shadow: 0 20px 60px rgba(0, 20, 0, 0.25);
+            border: 1px solid #bccfbc;
+            position: relative;
+        }
+
+        .app-header {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            padding-bottom: 12px;
+            border-bottom: 2px solid #e6f0e6;
+            margin-bottom: 14px;
+        }
+
+        .app-header .logo {
+            font-size: 20px;
+            font-weight: 700;
+            color: #1a4a1a;
+            display: flex;
+            align-items: center;
+            gap: 6px;
+        }
+
+        .app-header .logo span {
+            font-size: 22px;
+        }
+
+        .app-header .profile {
+            font-size: 24px;
+            background: #eaf3ea;
+            width: 40px;
+            height: 40px;
+            border-radius: 50%;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            cursor: default;
+        }
+
+        /* ── Переключатель города ── */
+        .city-switcher {
+            display: flex;
+            background: #ecf4ec;
+            border-radius: 30px;
+            padding: 4px;
+            margin-bottom: 14px;
+        }
+
+        .city-btn {
+            flex: 1;
+            text-align: center;
+            padding: 8px 0;
+            font-size: 14px;
+            font-weight: 600;
+            color: #3d6b3d;
+            border-radius: 26px;
+            cursor: pointer;
+            transition: 0.15s;
+            border: none;
+            background: transparent;
+            font-family: inherit;
+        }
+
+        .city-btn.active {
+            background: #1f5a2a;
+            color: white;
+            box-shadow: 0 2px 8px rgba(30, 90, 30, 0.20);
+        }
+
+        .city-btn:hover {
+            background: #d4e8d4;
+        }
+
+        .city-btn.active:hover {
+            background: #1f5a2a;
+        }
+
+        .content {
+            min-height: 420px;
+            transition: all 0.2s;
+        }
+
+        .page {
+            display: none;
+            animation: fade 0.25s ease;
+        }
+
+        .page.active {
+            display: block;
+        }
+
+        .page.city-hidden {
+            display: none !important;
+        }
+
+        @keyframes fade {
+            0% { opacity: 0.5; transform: translateY(6px); }
+            100% { opacity: 1; transform: translateY(0); }
+        }
+
+        .stats-row {
+            display: flex;
+            justify-content: space-between;
+            gap: 10px;
+            margin-bottom: 16px;
+        }
+
+        .stat-card {
+            background: #f3faf3;
+            border-radius: 16px;
+            padding: 10px 12px;
+            flex: 1;
+            text-align: center;
+            border: 1px solid #d4e8d4;
+        }
+
+        .stat-card .num {
+            font-size: 22px;
+            font-weight: 700;
+            color: #1f6a1f;
+        }
+
+        .stat-card .label {
+            font-size: 11px;
+            color: #3d6b3d;
+            font-weight: 500;
+        }
+
+        .district-card {
+            background: #f9fcf9;
+            border-radius: 16px;
+            padding: 12px 16px;
+            border: 1px solid #d4e8d4;
+            margin-bottom: 10px;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+        }
+
+        .district-card .info .name {
+            font-weight: 700;
+            font-size: 15px;
+            color: #1a3f1a;
+        }
+
+        .district-card .info .details {
+            font-size: 12px;
+            color: #4d6f4d;
+            margin-top: 2px;
+        }
+
+        .badge {
+            padding: 4px 14px;
+            border-radius: 30px;
+            font-size: 13px;
+            font-weight: 700;
+            color: white;
+        }
+
+        .badge.gold { background: #c9a832; }
+        .badge.silver { background: #8fa3a8; }
+        .badge.bronze { background: #b07c4a; }
+        .badge.red { background: #b34141; }
+        .badge.green { background: #1f6a1f; }
+
+        .action-btn {
+            width: 100%;
+            background: #1f5a2a;
+            color: white;
+            border: none;
+            border-radius: 30px;
+            padding: 14px 0;
+            font-size: 16px;
+            font-weight: 700;
+            cursor: default;
+            margin-top: 4px;
+            box-shadow: 0 4px 14px rgba(30, 90, 30, 0.25);
+            text-align: center;
+        }
+
+        /* ── Карта ── */
+        .map-container {
+            border-radius: 20px;
+            overflow: hidden;
+            height: 340px;
+            border: 2px solid #d4e8d4;
+            position: relative;
+        }
+
+        .map-container #map-spb,
+        .map-container #map-mariupol {
+            width: 100%;
+            height: 100%;
+        }
+
+        .map-legend {
+            display: flex;
+            justify-content: center;
+            gap: 20px;
+            margin-top: 12px;
+            font-size: 12px;
+            font-weight: 500;
+            color: #2f5a2f;
+            flex-wrap: wrap;
+        }
+
+        .map-legend-item {
+            display: flex;
+            align-items: center;
+            gap: 6px;
+        }
+
+        .dot {
+            width: 14px;
+            height: 14px;
+            border-radius: 50%;
+            border: 1px solid rgba(0,0,0,0.1);
+        }
+
+        .dot.green { background: #2a8a2a; }
+        .dot.yellow { background: #d4a82a; }
+        .dot.red { background: #b34141; }
+
+        .map-stats {
+            display: flex;
+            justify-content: center;
+            gap: 20px;
+            margin-top: 8px;
+            font-size: 12px;
+            color: #4d6f4d;
+            flex-wrap: wrap;
+        }
+
+        /* ── Заявки ── */
+        .request-card {
+            background: #f9fcf9;
+            border-radius: 16px;
+            padding: 12px 16px;
+            border: 1px solid #d4e8d4;
+            margin-bottom: 10px;
+        }
+
+        .request-card .top {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+        }
+
+        .request-card .address {
+            font-weight: 600;
+            font-size: 14px;
+            color: #1a3f1a;
+        }
+
+        .request-card .status {
+            font-size: 12px;
+            font-weight: 600;
+            padding: 2px 12px;
+            border-radius: 30px;
+        }
+
+        .status.done { background: #dff0df; color: #1a6a1a; }
+        .status.progress { background: #fff3d6; color: #a67a2a; }
+        .status.waiting { background: #f7e6e6; color: #a63a3a; }
+
+        .request-card .bottom {
+            font-size: 12px;
+            color: #4d6f4d;
+            margin-top: 6px;
+            display: flex;
+            justify-content: space-between;
+        }
+
+        /* ── Рейтинг ── */
+        .rating-filters {
+            display: flex;
+            gap: 8px;
+            margin-bottom: 12px;
+            flex-wrap: wrap;
+        }
+
+        .filter-chip {
+            background: #ecf4ec;
+            padding: 4px 14px;
+            border-radius: 30px;
+            font-size: 12px;
+            font-weight: 600;
+            color: #3d6b3d;
+            cursor: default;
+        }
+
+        .filter-chip.active {
+            background: #1f5a2a;
+            color: white;
+        }
+
+        /* ── Профиль ── */
+        .profile-card {
+            text-align: center;
+            padding: 16px 0;
+        }
+
+        .profile-card .avatar {
+            font-size: 64px;
+            background: #eaf3ea;
+            width: 100px;
+            height: 100px;
+            border-radius: 50%;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            margin: 0 auto 12px;
+        }
+
+        .profile-card .name {
+            font-size: 20px;
+            font-weight: 700;
+            color: #1a3f1a;
+        }
+
+        .profile-card .role {
+            font-size: 14px;
+            color: #4d6f4d;
+            margin-top: 2px;
+        }
+
+        .profile-stats {
+            display: flex;
+            justify-content: center;
+            gap: 30px;
+            margin-top: 14px;
+        }
+
+        .profile-stats .item {
+            text-align: center;
+        }
+
+        .profile-stats .num {
+            font-size: 22px;
+            font-weight: 700;
+            color: #1f6a1f;
+        }
+
+        .profile-stats .label {
+            font-size: 11px;
+            color: #4d6f4d;
+        }
+
+        .profile-menu {
+            margin-top: 16px;
+            text-align: left;
+        }
+
+        .profile-menu .item {
+            padding: 12px 16px;
+            border-bottom: 1px solid #ecf4ec;
+            font-weight: 500;
+            font-size: 14px;
+            color: #1a3f1a;
+            display: flex;
+            justify-content: space-between;
+            cursor: default;
+        }
+
+        .profile-menu .item .arrow {
+            color: #8aaa8a;
+        }
+
+        /* ── Нижняя навигация ── */
+        .bottom-nav {
+            display: flex;
+            justify-content: space-around;
+            margin-top: 18px;
+            padding-top: 14px;
+            border-top: 1.5px solid #e6f0e6;
+        }
+
+        .nav-item {
+            text-align: center;
+            font-size: 10px;
+            color: #6f8f6f;
+            font-weight: 600;
+            cursor: pointer;
+            transition: 0.15s;
+            padding: 4px 8px;
+            border-radius: 12px;
+            user-select: none;
+            background: transparent;
+            border: none;
+            font-family: inherit;
+        }
+
+        .nav-item .icon {
+            font-size: 22px;
+            display: block;
+            margin-bottom: 2px;
+        }
+
+        .nav-item.active {
+            color: #1f5a2a;
+            background: #ecf4ec;
+        }
+
+        .nav-item:hover {
+            background: #ecf4ec;
+        }
+
+        @media (max-width: 450px) {
+            .phone { border-radius: 28px; padding: 14px 12px 18px; }
+            .stat-card .num { font-size: 18px; }
+            .stat-card .label { font-size: 10px; }
+            .district-card .info .name { font-size: 13px; }
+            .badge { font-size: 11px; padding: 3px 10px; }
+            .action-btn { font-size: 14px; padding: 12px 0; }
+            .map-container { height: 260px; }
+            .city-btn { font-size: 12px; padding: 6px 0; }
+        }
+
+        @media (max-width: 380px) {
+            .phone { border-radius: 20px; padding: 10px 8px 14px; }
+            .stats-row { flex-wrap: wrap; }
+            .stat-card { flex: 1 1 40%; padding: 8px 6px; }
+            .stat-card .num { font-size: 16px; }
+            .nav-item .icon { font-size: 18px; }
+            .nav-item { font-size: 9px; }
+            .map-container { height: 200px; }
+            .city-btn { font-size: 10px; padding: 4px 0; }
+        }
+    </style>
+</head>
+<body>
+
+    <div class="phone">
+
+        <!-- ШАПКА -->
+        <div class="app-header">
+            <div class="logo">
+                <span>🌱</span> Эко-Хаб
+            </div>
+            <div class="profile">👤</div>
+        </div>
+
+        <!-- ПЕРЕКЛЮЧАТЕЛЬ ГОРОДА -->
+        <div class="city-switcher">
+            <button class="city-btn active" data-city="spb">📍 Санкт-Петербург</button>
+            <button class="city-btn" data-city="mariupol">📍 Мариуполь</button>
+        </div>
+
+        <!-- КОНТЕНТ -->
+        <div class="content">
+
+            <!-- ========================================================= -->
+            <!-- ============ САНКТ-ПЕТЕРБУРГ ============ -->
+            <!-- ========================================================= -->
+
+            <!-- ГЛАВНАЯ СПБ -->
+            <div class="page active" data-page="home" data-city="spb">
+                <div class="stats-row">
+                    <div class="stat-card">
+                        <div class="num">320 кг</div>
+                        <div class="label">макулатуры</div>
+                    </div>
+                    <div class="stat-card">
+                        <div class="num">180 кг</div>
+                        <div class="label">пластика</div>
+                    </div>
+                    <div class="stat-card">
+                        <div class="num">65 кг</div>
+                        <div class="label">батареек</div>
+                    </div>
+                </div>
+
+                <div class="district-card">
+                    <div class="info">
+                        <div class="name">🏆 Приморский</div>
+                        <div class="details">14 акций · 520 кг собрано</div>
+                    </div>
+                    <div class="badge gold">⭐ 1-е</div>
+                </div>
+                <div class="district-card">
+                    <div class="info">
+                        <div class="name">🥈 Центральный</div>
+                        <div class="details">11 акций · 380 кг собрано</div>
+                    </div>
+                    <div class="badge silver">2-е</div>
+                </div>
+                <div class="district-card">
+                    <div class="info">
+                        <div class="name">🥉 Выборгский</div>
+                        <div class="details">8 акций · 310 кг собрано</div>
+                    </div>
+                    <div class="badge bronze">3-е</div>
+                </div>
+
+                <div class="action-btn">📤 Сообщить о проблеме</div>
+            </div>
+
+            <!-- КАРТА СПБ -->
+            <div class="page" data-page="map" data-city="spb">
+                <div class="map-container">
+                    <div id="map-spb"></div>
+                </div>
+                <div class="map-legend">
+                    <div class="map-legend-item"><span class="dot green"></span> Чисто</div>
+                    <div class="map-legend-item"><span class="dot yellow"></span> Переполнено</div>
+                    <div class="map-legend-item"><span class="dot red"></span> Свалка</div>
+                </div>
+                <div class="map-stats">
+                    <span>📍 32 площадки</span>
+                    <span>🟢 17 чистых</span>
+                    <span>🟡 10 переполнены</span>
+                    <span>🔴 5 свалок</span>
+                </div>
+                <div style="margin-top:8px; font-size:11px; color:#4d6f4d; text-align:center;">
+                    📌 Нажмите на метку для подробной информации
+                </div>
+            </div>
+
+            <!-- ЗАЯВКИ СПБ -->
+            <div class="page" data-page="requests" data-city="spb">
+                <div class="request-card">
+                    <div class="top">
+                        <span class="address">📍 Невский пр., 45</span>
+                        <span class="status done">✅ Выполнено</span>
+                    </div>
+                    <div class="bottom">
+                        <span>Переполненный бак</span>
+                        <span>03.06.2026</span>
+                    </div>
+                </div>
+                <div class="request-card">
+                    <div class="top">
+                        <span class="address">📍 ул. Садовая, 12</span>
+                        <span class="status progress">⏳ В работе</span>
+                    </div>
+                    <div class="bottom">
+                        <span>Свалка у дома</span>
+                        <span>05.06.2026</span>
+                    </div>
+                </div>
+                <div class="request-card">
+                    <div class="top">
+                        <span class="address">📍 пр. Просвещения, 8</span>
+                        <span class="status waiting">⏰ Ожидает</span>
+                    </div>
+                    <div class="bottom">
+                        <span>Нет контейнера</span>
+                        <span>06.06.2026</span>
+                    </div>
+                </div>
+                <div class="action-btn" style="margin-top:8px;">➕ Новая заявка</div>
+            </div>
+
+            <!-- РЕЙТИНГ СПБ -->
+            <div class="page" data-page="rating" data-city="spb">
+                <div class="rating-filters">
+                    <span class="filter-chip active">🏆 Районы</span>
+                    <span class="filter-chip">🏫 Школы</span>
+                    <span class="filter-chip">🏢 УК</span>
+                </div>
+                <div class="district-card">
+                    <div class="info">
+                        <div class="name">⭐ Приморский</div>
+                        <div class="details">14 акций · 520 кг · 4.9 ★</div>
+                    </div>
+                    <div class="badge gold">1-е</div>
+                </div>
+                <div class="district-card">
+                    <div class="info">
+                        <div class="name">Центральный</div>
+                        <div class="details">11 акций · 380 кг · 4.7 ★</div>
+                    </div>
+                    <div class="badge silver">2-е</div>
+                </div>
+                <div class="district-card">
+                    <div class="info">
+                        <div class="name">Выборгский</div>
+                        <div class="details">8 акций · 310 кг · 4.5 ★</div>
+                    </div>
+                    <div class="badge bronze">3-е</div>
+                </div>
+                <div class="district-card">
+                    <div class="info">
+                        <div class="name">Невский</div>
+                        <div class="details">4 акции · 110 кг · 3.2 ★</div>
+                    </div>
+                    <div class="badge red">10-е</div>
+                </div>
+            </div>
+
+            <!-- ПРОФИЛЬ СПБ -->
+            <div class="page" data-page="profile" data-city="spb">
+                <div class="profile-card">
+                    <div class="avatar">👤</div>
+                    <div class="name">Анна С.</div>
+                    <div class="role">Волонтёр · Эко-Хаб · СПб</div>
+                    <div class="profile-stats">
+                        <div class="item"><div class="num">22</div><div class="label">акции</div></div>
+                        <div class="item"><div class="num">58 кг</div><div class="label">собрано</div></div>
+                        <div class="item"><div class="num">15</div><div class="label">заявок</div></div>
+                    </div>
+                </div>
+                <div class="profile-menu">
+                    <div class="item">📋 Мои заявки <span class="arrow">›</span></div>
+                    <div class="item">🏆 Мои достижения <span class="arrow">›</span></div>
+                    <div class="item">📊 Статистика <span class="arrow">›</span></div>
+                    <div class="item">⚙️ Настройки <span class="arrow">›</span></div>
+                    <div class="item">❓ Помощь <span class="arrow">›</span></div>
+                </div>
+            </div>
+
+            <!-- ========================================================= -->
+            <!-- ============ МАРИУПОЛЬ ============ -->
+            <!-- ========================================================= -->
+
+            <!-- ГЛАВНАЯ МАРИУПОЛЬ -->
+            <div class="page city-hidden" data-page="home" data-city="mariupol">
+                <div class="stats-row">
+                    <div class="stat-card">
+                        <div class="num">180 кг</div>
+                        <div class="label">макулатуры</div>
+                    </div>
+                    <div class="stat-card">
+                        <div class="num">95 кг</div>
+                        <div class="label">пластика</div>
+                    </div>
+                    <div class="stat-card">
+                        <div class="num">30 кг</div>
+                        <div class="label">батареек</div>
+                    </div>
+                </div>
+
+                <div class="district-card">
+                    <div class="info">
+                        <div class="name">🏆 Центральный</div>
+                        <div class="details">10 акций · 350 кг собрано</div>
+                    </div>
+                    <div class="badge gold">⭐ 1-е</div>
+                </div>
+                <div class="district-card">
+                    <div class="info">
+                        <div class="name">🥈 Левобережный</div>
+                        <div class="details">7 акций · 240 кг собрано</div>
+                    </div>
+                    <div class="badge silver">2-е</div>
+                </div>
+                <div class="district-card">
+                    <div class="info">
+                        <div class="name">🥉 Приморский</div>
+                        <div class="details">5 акций · 180 кг собрано</div>
+                    </div>
+                    <div class="badge bronze">3-е</div>
+                </div>
+
+                <div class="action-btn">📤 Сообщить о проблеме</div>
+            </div>
+
+            <!-- КАРТА МАРИУПОЛЬ -->
+            <div class="page city-hidden" data-page="map" data-city="mariupol">
+                <div class="map-container">
+                    <div id="map-mariupol"></div>
+                </div>
+                <div class="map-legend">
+                    <div class="map-legend-item"><span class="dot green"></span> Чисто</div>
+                    <div class="map-legend-item"><span class="dot yellow"></span> Переполнено</div>
+                    <div class="map-legend-item"><span class="dot red"></span> Свалка</div>
+                </div>
+                <div class="map-stats">
+                    <span>📍 18 площадок</span>
+                    <span>🟢 8 чистых</span>
+                    <span>🟡 6 переполнены</span>
+                    <span>🔴 4 свалки</span>
+                </div>
+                <div style="margin-top:8px; font-size:11px; color:#4d6f4d; text-align:center;">
+                    📌 Нажмите на метку для подробной информации
+                </div>
+            </div>
+
+            <!-- ЗАЯВКИ МАРИУПОЛЬ -->
+            <div class="page city-hidden" data-page="requests" data-city="mariupol">
+                <div class="request-card">
+                    <div class="top">
+                        <span class="address">📍 пр. Мира, 25</span>
+                        <span class="status done">✅ Выполнено</span>
+                    </div>
+                    <div class="bottom">
+                        <span>Переполненный бак</span>
+                        <span>02.06.2026</span>
+                    </div>
+                </div>
+                <div class="request-card">
+                    <div class="top">
+                        <span class="address">📍 ул. Строителей, 8</span>
+                        <span class="status progress">⏳ В работе</span>
+                    </div>
+                    <div class="bottom">
+                        <span>Строительный мусор</span>
+                        <span>04.06.2026</span>
+                    </div>
+                </div>
+                <div class="request-card">
+                    <div class="top">
+                        <span class="address">📍 ул. Морская, 15</span>
+                        <span class="status waiting">⏰ Ожидает</span>
+                    </div>
+                    <div class="bottom">
+                        <span>Свалка на пустыре</span>
+                        <span>06.06.2026</span>
+                    </div>
+                </div>
+                <div class="action-btn" style="margin-top:8px;">➕ Новая заявка</div>
+            </div>
+
+            <!-- РЕЙТИНГ МАРИУПОЛЬ -->
+            <div class="page city-hidden" data-page="rating" data-city="mariupol">
+                <div class="rating-filters">
+                    <span class="filter-chip active">🏆 Районы</span>
+                    <span class="filter-chip">🏫 Школы</span>
+                    <span class="filter-chip">🏢 УК</span>
+                </div>
+                <div class="district-card">
+                    <div class="info">
+                        <div class="name">⭐ Центральный</div>
+                        <div class="details">10 акций · 350 кг · 4.8 ★</div>
+                    </div>
+                    <div class="badge gold">1-е</div>
+                </div>
+                <div class="district-card">
+                    <div class="info">
+                        <div class="name">Левобережный</div>
+                        <div class="details">7 акций · 240 кг · 4.5 ★</div>
+                    </div>
+                    <div class="badge silver">2-е</div>
+                </div>
+                <div class="district-card">
+                    <div class="info">
+                        <div class="name">Приморский</div>
+                        <div class="details">5 акций · 180 кг · 4.2 ★</div>
+                    </div>
+                    <div class="badge bronze">3-е</div>
+                </div>
+                <div class="district-card">
+                    <div class="info">
+                        <div class="name">Киевский</div>
+                        <div class="details">2 акции · 60 кг · 3.0 ★</div>
+                    </div>
+                    <div class="badge red">8-е</div>
+                </div>
+            </div>
+
+            <!-- ПРОФИЛЬ МАРИУПОЛЬ -->
+            <div class="page city-hidden" data-page="profile" data-city="mariupol">
+                <div class="profile-card">
+                    <div class="avatar">👤</div>
+                    <div class="name">Анна С.</div>
+                    <div class="role">Волонтёр · Эко-Хаб · Мариуполь</div>
+                    <div class="profile-stats">
+                        <div class="item"><div class="num">14</div><div class="label">акции</div></div>
+                        <div class="item"><div class="num">35 кг</div><div class="label">собрано</div></div>
+                        <div class="item"><div class="num">9</div><div class="label">заявок</div></div>
+                    </div>
+                </div>
+                <div class="profile-menu">
+                    <div class="item">📋 Мои заявки <span class="arrow">›</span></div>
+                    <div class="item">🏆 Мои достижения <span class="arrow">›</span></div>
+                    <div class="item">📊 Статистика <span class="arrow">›</span></div>
+                    <div class="item">⚙️ Настройки <span class="arrow">›</span></div>
+                    <div class="item">❓ Помощь <span class="arrow">›</span></div>
+                </div>
+            </div>
+
+        </div>
+
+        <!-- НИЖНЯЯ НАВИГАЦИЯ -->
+        <div class="bottom-nav">
+            <button class="nav-item active" data-target="home">
+                <span class="icon">🏠</span> Главная
+            </button>
+            <button class="nav-item" data-target="map">
+                <span class="icon">🗺️</span> Карта
+            </button>
+            <button class="nav-item" data-target="requests">
+                <span class="icon">📤</span> Заявки
+            </button>
+            <button class="nav-item" data-target="rating">
+                <span class="icon">🏆</span> Рейтинг
+            </button>
+            <button class="nav-item" data-target="profile">
+                <span class="icon">👤</span> Профиль
+            </button>
+        </div>
+
+    </div>
+
+    <script>
+        // ── Переключение города ──
+        let currentCity = 'spb';
+        let currentPage = 'home';
+
+        const cityBtns = document.querySelectorAll('.city-btn');
+        const pages = document.querySelectorAll('.page');
+        const navItems = document.querySelectorAll('.nav-item');
+
+        cityBtns.forEach(btn => {
+            btn.addEventListener('click', function() {
+                const city = this.dataset.city;
+                currentCity = city;
+
+                cityBtns.forEach(b => b.classList.remove('active'));
+                this.classList.add('active');
+
+                updatePages(city, currentPage);
+                updateMap(city);
+            });
+        });
+
+        navItems.forEach(item => {
+            item.addEventListener('click', function() {
+                const target = this.dataset.target;
+                currentPage = target;
+
+                navItems.forEach(n => n.classList.remove('active'));
+                this.classList.add('active');
+
+                updatePages(currentCity, target);
+
+                if (target === 'map') {
+                    setTimeout(() => {
+                        const mapInstance = window[`map_${currentCity}`];
+                        if (mapInstance) {
+                            mapInstance.container.fitToViewport();
+                        }
+                    }, 200);
+                }
+            });
+        });
+
+        function updatePages(city, page) {
+            pages.forEach(p => {
+                const pageCity = p.dataset.city;
+                const pageName = p.dataset.page;
+
+                if (pageCity === city && pageName === page) {
+                    p.classList.remove('city-hidden');
+                    p.classList.add('active');
+                } else if (pageCity === city) {
+                    p.classList.remove('active');
+                    p.classList.add('city-hidden');
+                } else {
+                    p.classList.remove('active');
+                    p.classList.add('city-hidden');
+                }
+            });
+        }
+
+        function updateMap(city) {
+            const map = window[`map_${city}`];
+            if (map) {
+                setTimeout(() => {
+                    map.container.fitToViewport();
+                }, 100);
+            }
+        }
+
+        // ── Инициализация карт ──
+        ymaps.ready(function() {
+            // Карта СПБ
+            initMap('spb', 'map-spb', [59.9386, 30.3141], getSpbData());
+            // Карта Мариуполя
+            initMap('mariupol', 'map-mariupol', [47.0971, 37.5434], getMariupolData());
+        });
+
+        function initMap(city, containerId, center, places) {
+            const map = new ymaps.Map(containerId, {
+                center: center,
+                zoom: 13,
+                controls: ['zoomControl', 'fullscreenControl']
+            });
+
+            const statusColors = {
+                'clean': 'green',
+                'full': 'yellow',
+                'dump': 'red'
+            };
+
+            const statusLabels = {
+                'clean': 'Чисто',
+                'full': 'Переполнено',
+                'dump': 'Свалка'
+            };
+
+            const statusEmojis = {
+                'clean': '🟢',
+                'full': '🟡',
+                'dump': '🔴'
+            };
+
+            places.forEach(place => {
+                const color = statusColors[place.status] || 'blue';
+                const label = statusLabels[place.status] || 'Неизвестно';
+                const emoji = statusEmojis[place.status] || '📍';
+
+                const placemark = new ymaps.Placemark(
+                    place.coords,
+                    {
+                        balloonContent: `
+                            <div style="font-weight:700; font-size:16px; color:#1a3f1a;">
+                                ${emoji} ${place.name}
+                            </div>
+                            <div style="font-size:14px; color:#2f5a2f; margin-top:4px;">
+                                <span style="font-weight:600;">Статус:</span> ${label}
+                            </div>
+                            <div style="font-size:12px; color:#4d6f4d; margin-top:6px;">
+                                📍 ${place.coords[0].toFixed(4)}, ${place.coords[1].toFixed(4)}
+                            </div>
+                            <div style="font-size:12px; color:#4d6f4d; margin-top:4px;">
+                                🕒 Обновлено: ${new Date().toLocaleDateString()}
+                            </div>
+                            <div style="font-size:12px; color:#4d6f4d; margin-top:6px;">
+                                <span style="background:#ecf4ec; padding:2px 10px; border-radius:12px;">
+                                    ${place.status === 'clean' ? '✅ Не требует вывоза' : '🚛 Требуется вывоз'}
+                                </span>
+                            </div>
+                        `,
+                        hintContent: `${emoji} ${place.name} — ${label}`
+                    },
+                    {
+                        preset: `islands#${color}StretchyIcon`,
+                        openBalloonOnClick: true,
+                        iconColor: color === 'green' ? '#2a8a2a' :
+                                   color === 'yellow' ? '#d4a82a' :
+                                   color === 'red' ? '#b34141' : '#1f6a1f',
+                        iconContent: place.status === 'clean' ? '✓' :
+                                     place.status === 'full' ? '!' : '⚠',
+                        iconContentSize: 16,
+                        iconContentColor: 'white',
+                        iconContentOffset: [0, 0]
+                    }
+                );
+
+                map.geoObjects.add(placemark);
+            });
+
+            const bounds = map.geoObjects.getBounds();
+            if (bounds) {
+                map.setBounds(bounds, {
+                    checkZoomRange: true,
+                    zoomMargin: 40
+                });
+            }
+
+            window[`map_${city}`] = map;
+        }
+
+        // ── Данные для карт ──
+
+        function getSpbData() {
+            return [
+                // Зелёные (чисто)
+                { coords: [59.9386, 30.3141], name: 'Невский пр., 5', status: 'clean' },
+                { coords: [59.9410, 30.3200], name: 'ул. Садовая, 10', status: 'clean' },
+                { coords: [59.9450, 30.3050], name: 'наб. Фонтанки, 15', status: 'clean' },
+                { coords: [59.9360, 30.3300], name: 'ул. Рубинштейна, 20', status: 'clean' },
+                { coords: [59.9400, 30.3000], name: 'ул. Марата, 8', status: 'clean' },
+                { coords: [59.9480, 30.3100], name: 'ул. Восстания, 12', status: 'clean' },
+                { coords: [59.9300, 30.3250], name: 'ул. Гороховая, 25', status: 'clean' },
+                { coords: [59.9500, 30.3300], name: 'ул. Жуковского, 7', status: 'clean' },
+                { coords: [59.9330, 30.2950], name: 'ул. Декабристов, 14', status: 'clean' },
+                { coords: [59.9430, 30.3400], name: 'ул. Маяковского, 22', status: 'clean' },
+                { coords: [59.9350, 30.2850], name: 'ул. Глинки, 6', status: 'clean' },
+                { coords: [59.9470, 30.3500], name: 'ул. Некрасова, 18', status: 'clean' },
+                { coords: [59.9290, 30.3050], name: 'ул. Можайская, 4', status: 'clean' },
+                { coords: [59.9510, 30.3200], name: 'ул. Радищева, 9', status: 'clean' },
+                { coords: [59.9340, 30.3400], name: 'ул. Литейный пр., 30', status: 'clean' },
+                { coords: [59.9420, 30.3100], name: 'ул. Пушкинская, 12', status: 'clean' },
+                { coords: [59.9460, 30.2950], name: 'ул. Звенигородская, 5', status: 'clean' },
+                // Жёлтые (переполнены)
+                { coords: [59.9390, 30.3100], name: 'ул. Белинского, 12', status: 'full' },
+                { coords: [59.9420, 30.3250], name: 'ул. Чайковского, 8', status: 'full' },
+                { coords: [59.9370, 30.3400], name: 'ул. Фурштатская, 15', status: 'full' },
+                { coords: [59.9440, 30.2950], name: 'ул. Моховая, 20', status: 'full' },
+                { coords: [59.9310, 30.3100], name: 'ул. Загородный пр., 30', status: 'full' },
+                { coords: [59.9490, 30.3050], name: 'ул. Кирочная, 11', status: 'full' },
+                { coords: [59.9400, 30.3350], name: 'ул. Салтыкова-Щедрина, 5', status: 'full' },
+                { coords: [59.9340, 30.3050], name: 'ул. Серпуховская, 7', status: 'full' },
+                { coords: [59.9460, 30.3350], name: 'ул. Парадная, 19', status: 'full' },
+                { coords: [59.9380, 30.2900], name: 'ул. Дровяная, 3', status: 'full' },
+                // Красные (свалки)
+                { coords: [59.9370, 30.2890], name: 'ул. Союза Печатников, 10', status: 'dump' },
+                { coords: [59.9450, 30.3250], name: 'ул. Пестеля, 25', status: 'dump' },
+                { coords: [59.9300, 30.2900], name: 'ул. Курляндская, 14', status: 'dump' },
+                { coords: [59.9500, 30.3000], name: 'ул. Рылеева, 7', status: 'dump' },
+                { coords: [59.9430, 30.3150], name: 'ул. Владимирский пр., 18', status: 'dump' },
+            ];
+        }
+
+        function getMariupolData() {
+            return [
+                // Зелёные (чисто)
+                { coords: [47.0971, 37.5434], name: 'пр. Мира, 10', status: 'clean' },
+                { coords: [47.1020, 37.5500], name: 'ул. Строителей, 5', status: 'clean' },
+                { coords: [47.0900, 37.5400], name: 'ул. Морская, 8', status: 'clean' },
+                { coords: [47.1050, 37.5350], name: 'ул. Центральная, 15', status: 'clean' },
+                { coords: [47.0950, 37.5550], name: 'ул. Западная, 12', status: 'clean' },
+                { coords: [47.1000, 37.5450], name: 'ул. Победы, 20', status: 'clean' },
+                { coords: [47.0880, 37.5480], name: 'ул. Азовская, 6', status: 'clean' },
+                { coords: [47.0920, 37.5350], name: 'ул. Восточная, 9', status: 'clean' },
+                // Жёлтые (переполнены)
+                { coords: [47.0990, 37.5380], name: 'ул. Маяковского, 14', status: 'full' },
+                { coords: [47.1030, 37.5420], name: 'ул. Мичурина, 7', status: 'full' },
+                { coords: [47.0890, 37.5450], name: 'ул. Крымская, 22', status: 'full' },
+                { coords: [47.1060, 37.5480], name: 'ул. Свободы, 11', status: 'full' },
+                { coords: [47.0940, 37.5300], name: 'ул. Школьная, 4', status: 'full' },
+                { coords: [47.0980, 37.5550], name: 'ул. Лермонтова, 18', status: 'full' },
+                // Красные (свалки)
+                { coords: [47.0870, 37.5400], name: 'ул. Заводская, 3', status: 'dump' },
+                { coords: [47.1040, 37.5300], name: 'ул. Парковая, 7', status: 'dump' },
+                { coords: [47.0910, 37.5500], name: 'ул. Приморская, 25', status: 'dump' },
+                { coords: [47.1070, 37.5400], name: 'ул. Железнодорожная, 12', status: 'dump' },
+            ];
+        }
+
+        // ── Инициализация при загрузке ──
+        document.addEventListener('DOMContentLoaded', function() {
+            updatePages('spb', 'home');
+            document.querySelector('.city-btn[data-city="spb"]').classList.add('active');
+        });
+    </script>
+
+</body>
+</html>
